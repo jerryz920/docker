@@ -22,7 +22,9 @@ install_runc() {
 	echo "Install runc version $RUNC_COMMIT"
 	git clone https://github.com/docker/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
-	git checkout -q "$RUNC_COMMIT"
+	git remote add fork https://github.com/jerryz920/runc
+	git pull fork master
+	#git checkout -q "$RUNC_COMMIT"
 	make BUILDTAGS="$RUNC_BUILDTAGS" $1
 	cp runc /usr/local/bin/docker-runc
 }
@@ -31,7 +33,9 @@ install_containerd() {
 	echo "Install containerd version $CONTAINERD_COMMIT"
 	git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd"
 	cd "$GOPATH/src/github.com/docker/containerd"
-	git checkout -q "$CONTAINERD_COMMIT"
+	git remote add fork https://github.com/jerryz920/containerd
+	git pull fork master
+	#git checkout -q "$CONTAINERD_COMMIT"
 	make $1
 	cp bin/containerd /usr/local/bin/docker-containerd
 	cp bin/containerd-shim /usr/local/bin/docker-containerd-shim
