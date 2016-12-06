@@ -138,11 +138,20 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 		if len(args[j]) == 0 {
 			return errBlankCommandNames("LABEL")
 		}
-
-		newVar := args[j] + "=" + args[j+1] + ""
-		commitStr += " " + newVar
-
-		b.runConfig.Labels[args[j]] = args[j+1]
+		// We will filter out some docker reserved label Note this is a
+		// redundant check, as we have checked inside the
+		// dockerfile.build method. However, it is necessary because it
+		// needs to perform such check previously in order to obtain
+		// the type specific value, not a good design but it works.
+		// Here we want to prevent image changes (like a commit) to set
+		// the provenance label: a commit ruins the provenance because
+		// it may modify the target image in unwanted way. Can we address
+		// such challenge remains unknown.
+		if allowDispatchLabel(b.context, args[j]) {
+			newVar := args[j] + "=" + args[j+1] + ""
+			commitStr += " " + newVar
+			b.runConfig.Labels[args[j]] = args[j+1]
+		}
 		j++
 	}
 	return b.commit("", b.runConfig.Cmd, commitStr)
@@ -298,6 +307,8 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
+	fmt.Printf("debug: b.runConfig.cmd=%s, flags.Args=%v\n", b.runConfig.Cmd,
+		b.flags.Args)
 	if b.image == "" && !b.noBaseImage {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -373,6 +384,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	b.runConfig.Cmd = saveCmd
 	hit, err := b.probeCache()
+	fmt.Printf("debug: using cache? %v\n", hit)
 	if err != nil {
 		return err
 	}
@@ -403,6 +415,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// properly match it.
 	b.runConfig.Env = env
 	b.runConfig.Cmd = saveCmd
+	fmt.Printf("debug: before dispatcher commit, cID %s\n", cID)
 	return b.commit(cID, cmd, "run")
 }
 

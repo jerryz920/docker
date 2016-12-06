@@ -94,6 +94,7 @@ func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 
 // BuildFromContext builds a new image from a given context.
 func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+	fmt.Printf("debug: Called BuildFromContext, remote %s\n", remote)
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
@@ -146,6 +147,8 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		},
 	}
 	if icb, ok := backend.(builder.ImageCacheBuilder); ok {
+		fmt.Printf("debug: image cache builder type %T, CacheFrom %v\n", icb,
+			config.CacheFrom)
 		b.imageCache = icb.MakeImageCache(config.CacheFrom)
 	}
 
@@ -217,6 +220,7 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 // * Print a happy message and return the image ID.
 //
 func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
+	fmt.Printf("debug: Called dockerfile.build, image id: %s\n", b.image)
 	b.Stdout = stdout
 	b.Stderr = stderr
 	b.Output = out
@@ -236,8 +240,22 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	if len(b.options.Labels) > 0 {
 		line := "LABEL "
 		for k, v := range b.options.Labels {
-			line += fmt.Sprintf("%q='%s' ", k, v)
+			/// Provenance label is a special label that can only be set by docker
+			/// at dispatcher function
+			if allowUserLabel(k) {
+				line += fmt.Sprintf("%q='%s' ", k, v)
+			}
 		}
+		_, node, err := parser.ParseLine(line, &b.directive, false)
+		if err != nil {
+			return "", err
+		}
+		b.dockerfile.Children = append(b.dockerfile.Children, node)
+	}
+
+	if allowDispatchLabel(b.context, provenanceLabel) {
+		line := "LABEL " + buildTrustedLabel(b.context)
+		fmt.Printf("debug: Adding Provenance Label: %s", line)
 		_, node, err := parser.ParseLine(line, &b.directive, false)
 		if err != nil {
 			return "", err
@@ -331,6 +349,7 @@ func (b *Builder) Cancel() {
 //
 // TODO: Remove?
 func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
+	fmt.Printf("debug: Called BuildFromConfig, changes = (%v)\n", changes)
 	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
 	if err != nil {
 		return nil, err

@@ -260,7 +260,7 @@ copy_binaries() {
 
 install_binary() {
 	file="$1"
-	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local}/bin/"
+	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/}/bin/"
 	if [ "$(go env GOOS)" == "linux" ]; then
 		echo "Installing $(basename $file) to ${target}"
 		cp -L "$file" "$target"

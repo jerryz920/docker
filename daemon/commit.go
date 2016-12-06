@@ -141,6 +141,9 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
+	//// YAN TODO:
+	////   we need to remove the provenance label here if any. Because the
+	////   file content may have changed, and that's not true for the new image
 	if c.MergeConfigs {
 		if err := merge(newConfig, container.Config); err != nil {
 			return "", err
@@ -173,6 +176,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		osFeatures = img.OSFeatures
 	}
 
+	fmt.Printf("debug rootfs chain ID = %s, container image ID %s\n", rootFS.ChainID(), container.ImageID)
 	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
 	if err != nil {
 		return "", err
@@ -185,6 +189,12 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		CreatedBy:  strings.Join(container.Config.Cmd, " "),
 		Comment:    c.Comment,
 		EmptyLayer: true,
+	}
+
+	if p := l.Parent(); p != nil {
+		fmt.Printf("debug: layer ID %s, parent %s\n", l.ChainID(), p.ChainID())
+	} else {
+		fmt.Printf("debug: layer ID %s, parent none\n", l.ChainID())
 	}
 
 	if diffID := l.DiffID(); layer.DigestSHA256EmptyTar != diffID {
@@ -244,8 +254,8 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	}
 
 	attributes := map[string]string{
-		"comment": c.Comment,
-		"imageID": id.String(),
+		"comment":  c.Comment,
+		"imageID":  id.String(),
 		"imageRef": imageRef,
 	}
 	daemon.LogContainerEventWithAttributes(container, "commit", attributes)

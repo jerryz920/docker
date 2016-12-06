@@ -128,6 +128,7 @@ func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error
 	}
 
 	cmd, flags, args, err := splitCommand(line)
+	fmt.Printf("debug: in parser, %v, %v, %v\n", cmd, flags, args)
 	if err != nil {
 		return "", nil, err
 	}

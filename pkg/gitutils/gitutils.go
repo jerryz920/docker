@@ -1,6 +1,8 @@
 package gitutils
 
 import (
+	"bytes"
+	"crypto/sha1"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -38,6 +40,24 @@ func Clone(remoteURL string) (string, error) {
 	}
 
 	return checkoutGit(fragment, root)
+}
+
+/// It assumes the working dir is properly set, so this might not be thread safe
+func GitGetIdentity() ([]byte, []byte, error) {
+	rev_args := []string{"rev-parse", "--show-prefix", "HEAD"}
+	if output, err := git(rev_args...); err != nil {
+		return []byte{}, []byte{}, err
+	} else {
+		identities := bytes.SplitN(output, []byte{'\n'}, 2)
+		if len(identities) != 2 {
+			return []byte{}, []byte{},
+				fmt.Errorf("Can not identifying rev-parse result: %s", output)
+		}
+		/// sha1.Sum returns [20]byte, use [:] trick to convert it to a slice.
+		cwd_hash := sha1.Sum(bytes.Trim(identities[0], "\n"))
+		/// identities[1] would be the work tree hash
+		return cwd_hash[:], identities[1], nil
+	}
 }
 
 func cloneArgs(remoteURL *url.URL, root string) []string {

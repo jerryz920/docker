@@ -68,6 +68,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	autoConfig := *b.runConfig
 	autoConfig.Cmd = autoCmd
 
+	fmt.Printf("debug: Before commit the cmd: %v\n", autoCmd)
 	commitCfg := &backend.ContainerCommitConfig{
 		ContainerCommitConfig: types.ContainerCommitConfig{
 			Author: b.maintainer,

@@ -50,6 +50,14 @@ type ModifiableContext interface {
 	Remove(path string) error
 }
 
+type TrustedGitContext interface {
+	ModifiableContext
+	// This provides a hash from git that can not be spoofed
+	IdentityHash() []byte
+	// This indicates which context is used as working directory
+	CwdHash() []byte
+}
+
 // FileInfo extends os.FileInfo to allow retrieving an absolute path to the file.
 // TODO: remove this interface once pkg/archive exposes a walk function that Context can use.
 type FileInfo interface {
