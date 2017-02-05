@@ -39,7 +39,7 @@ func MakeGitContext(gitURL string) (ModifiableContext, error) {
 		if tarContext, err := MakeTarSumContext(c); err != nil {
 			return nil, err
 		} else {
-			return MakeTrustedGitContext(tarContext, treeHash, cwdHash), nil
+			return MakeTrustedGitContext(tarContext, gitURL, treeHash, cwdHash), nil
 		}
 
 	}
@@ -48,8 +48,13 @@ func MakeGitContext(gitURL string) (ModifiableContext, error) {
 
 type trustedGitContext struct {
 	ModifiableContext
+	gitURL       string
 	identityHash []byte
 	cwdHash      []byte
+}
+
+func (tc *trustedGitContext) GitURL() string {
+	return tc.gitURL
 }
 
 func (tc *trustedGitContext) IdentityHash() []byte {
@@ -60,7 +65,7 @@ func (tc *trustedGitContext) CwdHash() []byte {
 	return tc.cwdHash
 }
 
-func MakeTrustedGitContext(mc ModifiableContext,
+func MakeTrustedGitContext(mc ModifiableContext, gitURL string,
 	idHash []byte, cwdHash []byte) TrustedGitContext {
-	return &trustedGitContext{mc, idHash, cwdHash}
+	return &trustedGitContext{mc, gitURL, idHash, cwdHash}
 }

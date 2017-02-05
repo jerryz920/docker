@@ -76,6 +76,7 @@ func init() {
 		command.User:        user,
 		command.Volume:      volume,
 		command.Workdir:     workdir,
+		command.Tapcon:      tapcon,
 	}
 }
 

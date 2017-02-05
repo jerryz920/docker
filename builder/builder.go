@@ -52,6 +52,8 @@ type ModifiableContext interface {
 
 type TrustedGitContext interface {
 	ModifiableContext
+	// This provides the git URL used for build
+	GitURL() string
 	// This provides a hash from git that can not be spoofed
 	IdentityHash() []byte
 	// This indicates which context is used as working directory
@@ -149,6 +151,11 @@ type Backend interface {
 
 	// HasExperimental checks if the backend supports experimental features
 	HasExperimental() bool
+
+	// TapconMode allows only build from remote git repository, and restricts the image pulling. Plus, import
+	// new images are checked, to make sure the image do have "SOURCE" present. Such SOURCE must be signed by
+	// a certain party.
+	TapconModeOn() bool
 
 	// SquashImage squashes the fs layers from the provided image down to the specified `to` image
 	SquashImage(from string, to string) (string, error)

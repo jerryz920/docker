@@ -91,6 +91,8 @@ func init() {
 		command.User:        parseString,
 		command.Volume:      parseMaybeJSONToList,
 		command.Workdir:     parseString,
+		command.Tapcon:      parseString,
+		command.Git:         parseString,
 	}
 }
 

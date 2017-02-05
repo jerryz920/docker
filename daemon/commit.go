@@ -204,7 +204,8 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 
 	history = append(history, h)
 
-	config, err := json.Marshal(&image.Image{
+	//// extract and process TapconData if it is enabled
+	newImage := &image.Image{
 		V1Image: image.V1Image{
 			DockerVersion:   dockerversion.Version,
 			Config:          newConfig,
@@ -219,7 +220,12 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		History:    history,
 		OSFeatures: osFeatures,
 		OSVersion:  osVersion,
-	})
+	}
+	if daemon.TapconModeOn() {
+		daemon.tapconImageBuilt(newImage, c.TapconData)
+	}
+
+	config, err := json.Marshal(newImage)
 
 	if err != nil {
 		return "", err

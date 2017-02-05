@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
@@ -68,6 +69,18 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	autoConfig := *b.runConfig
 	autoConfig.Cmd = autoCmd
 
+	sourceInfo := image.Source{}
+	if b.docker.TapconModeOn() && b.commitSource {
+		gitContext, ok := b.context.(builder.TrustedGitContext)
+		if !ok {
+			return fmt.Errorf("Tapcon: build context is not trusted git, bug.")
+		}
+		sourceInfo.Repo = gitContext.GitURL()
+		sourceInfo.Revision = hex.EncodeToString(gitContext.IdentityHash())
+		sourceInfo.Dir = hex.EncodeToString(gitContext.CwdHash())
+		/// the argument currently serves as only a placeholder
+	}
+
 	fmt.Printf("debug: Before commit the cmd: %v\n", autoCmd)
 	commitCfg := &backend.ContainerCommitConfig{
 		ContainerCommitConfig: types.ContainerCommitConfig{
@@ -75,6 +88,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 			Pause:  true,
 			Config: &autoConfig,
 		},
+		TapconData: sourceInfo,
 	}
 
 	// Commit the container

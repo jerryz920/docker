@@ -75,11 +75,15 @@ type Builder struct {
 	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
 	directive        parser.Directive
 
+	// instruct the daemon to commit source information
+	commitSource bool
+
 	// TODO: remove once docker.Commit can receive a tag
 	id string
 
 	imageCache builder.ImageCache
 	from       builder.Image
+	source     image.Source
 }
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.
@@ -98,7 +102,7 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
-	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
+	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc, bm.backend)
 	if err != nil {
 		return "", err
 	}
@@ -240,11 +244,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	if len(b.options.Labels) > 0 {
 		line := "LABEL "
 		for k, v := range b.options.Labels {
-			/// Provenance label is a special label that can only be set by docker
-			/// at dispatcher function
-			if allowUserLabel(k) {
-				line += fmt.Sprintf("%q='%s' ", k, v)
-			}
+			line += fmt.Sprintf("%q='%s' ", k, v)
 		}
 		_, node, err := parser.ParseLine(line, &b.directive, false)
 		if err != nil {
@@ -253,10 +253,12 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		b.dockerfile.Children = append(b.dockerfile.Children, node)
 	}
 
-	if allowDispatchLabel(b.context, provenanceLabel) {
-		line := "LABEL " + buildTrustedLabel(b.context)
-		fmt.Printf("debug: Adding Provenance Label: %s", line)
-		_, node, err := parser.ParseLine(line, &b.directive, false)
+	if b.docker.TapconModeOn() {
+		_, ok := b.context.(builder.TrustedGitContext)
+		if !ok {
+			return "", fmt.Errorf("Tapcon: build context is not trusted git, bug.")
+		}
+		_, node, err := parser.ParseLine("TAPCON add_source", &b.directive, false)
 		if err != nil {
 			return "", err
 		}

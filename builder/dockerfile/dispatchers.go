@@ -138,20 +138,9 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 		if len(args[j]) == 0 {
 			return errBlankCommandNames("LABEL")
 		}
-		// We will filter out some docker reserved label Note this is a
-		// redundant check, as we have checked inside the
-		// dockerfile.build method. However, it is necessary because it
-		// needs to perform such check previously in order to obtain
-		// the type specific value, not a good design but it works.
-		// Here we want to prevent image changes (like a commit) to set
-		// the provenance label: a commit ruins the provenance because
-		// it may modify the target image in unwanted way. Can we address
-		// such challenge remains unknown.
-		if allowDispatchLabel(b.context, args[j]) {
-			newVar := args[j] + "=" + args[j+1] + ""
-			commitStr += " " + newVar
-			b.runConfig.Labels[args[j]] = args[j+1]
-		}
+		newVar := args[j] + "=" + args[j+1] + ""
+		commitStr += " " + newVar
+		b.runConfig.Labels[args[j]] = args[j+1]
 		j++
 	}
 	return b.commit("", b.runConfig.Cmd, commitStr)
@@ -257,7 +246,7 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 	switch triggerInstruction {
 	case "ONBUILD":
 		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
-	case "MAINTAINER", "FROM":
+	case "MAINTAINER", "FROM", "TAPCON":
 		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
 	}
 
@@ -794,4 +783,10 @@ func getShell(c *container.Config) []string {
 		return defaultShell[:]
 	}
 	return c.Shell[:]
+}
+
+// tapcon functions all implemented here
+func tapcon(b *Builder, args []string, attributes map[string]bool, original string) error {
+	b.commitSource = true
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("TAPCON"))
 }
