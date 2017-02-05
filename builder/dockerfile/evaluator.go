@@ -77,6 +77,7 @@ func init() {
 		command.User:        user,
 		command.Volume:      volume,
 		command.Workdir:     workdir,
+		command.Tapcon:      tapcon,
 	}
 }
 
@@ -197,6 +198,7 @@ func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 	if f, ok := evaluateTable[cmd]; ok {
 		b.flags = NewBFlags()
 		b.flags.Args = flags
+		fmt.Printf("debug: cmd %s, strList %v\n\n", cmd, strList)
 		return f(b, strList, attrs, original)
 	}
 

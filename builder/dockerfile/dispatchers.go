@@ -146,10 +146,8 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 		if len(args[j]) == 0 {
 			return errBlankCommandNames("LABEL")
 		}
-
 		newVar := args[j] + "=" + args[j+1] + ""
 		commitStr += " " + newVar
-
 		b.runConfig.Labels[args[j]] = args[j+1]
 		j++
 	}
@@ -255,8 +253,13 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
 	case "ONBUILD":
+<<<<<<< HEAD
 		return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
 	case "MAINTAINER", "FROM":
+=======
+		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+	case "MAINTAINER", "FROM", "TAPCON":
+>>>>>>> 154265484adfbfd746c9549294b244af2f6083ff
 		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
 	}
 
@@ -333,6 +336,8 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
+	fmt.Printf("debug: b.runConfig.cmd=%s, flags.Args=%v\n", b.runConfig.Cmd,
+		b.flags.Args)
 	if b.image == "" && !b.noBaseImage {
 		return errors.New("Please provide a source image with `from` prior to run")
 	}
@@ -408,6 +413,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	b.runConfig.Cmd = saveCmd
 	hit, err := b.probeCache()
+	fmt.Printf("debug: using cache? %v\n", hit)
 	if err != nil {
 		return err
 	}
@@ -438,6 +444,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// properly match it.
 	b.runConfig.Env = env
 	b.runConfig.Cmd = saveCmd
+	fmt.Printf("debug: before dispatcher commit, cID %s\n", cID)
 	return b.commit(cID, cmd, "run")
 }
 
@@ -819,4 +826,10 @@ func getShell(c *container.Config) []string {
 		return defaultShell[:]
 	}
 	return c.Shell[:]
+}
+
+// tapcon functions all implemented here
+func tapcon(b *Builder, args []string, attributes map[string]bool, original string) error {
+	b.commitSource = true
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("TAPCON"))
 }

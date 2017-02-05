@@ -118,6 +118,13 @@ func (daemon *Daemon) HasExperimental() bool {
 	return false
 }
 
+func (daemon *Daemon) TapconModeOn() bool {
+	if daemon.configStore.UseTapcon {
+		return true
+	}
+	return false
+}
+
 func (daemon *Daemon) restore() error {
 	var (
 		currentDriver = daemon.GraphDriverName()

@@ -24,5 +24,48 @@ func MakeGitContext(gitURL string) (ModifiableContext, error) {
 		c.Close()
 		os.RemoveAll(root)
 	}()
-	return MakeTarSumContext(c)
+
+	/// In the root we run 'git rev-parse --show-prefix HEAD', which will
+	/// produce:
+	///       work_dir
+	///       sha1sum of current HEAD
+	/// We use these information to create a special Label "Trust", which
+	/// can't be modified by others via future changes. If an image is pulled,
+	/// the docker daemon will also check if such "Trust" occurs, and it will
+	/// merge them as Json dict of two keys: commit, dir
+	if cwdHash, treeHash, err := gitutils.GitGetIdentity(); err != nil {
+		return nil, err
+	} else {
+		if tarContext, err := MakeTarSumContext(c); err != nil {
+			return nil, err
+		} else {
+			return MakeTrustedGitContext(tarContext, gitURL, treeHash, cwdHash), nil
+		}
+
+	}
+
+}
+
+type trustedGitContext struct {
+	ModifiableContext
+	gitURL       string
+	identityHash []byte
+	cwdHash      []byte
+}
+
+func (tc *trustedGitContext) GitURL() string {
+	return tc.gitURL
+}
+
+func (tc *trustedGitContext) IdentityHash() []byte {
+	return tc.identityHash
+}
+
+func (tc *trustedGitContext) CwdHash() []byte {
+	return tc.cwdHash
+}
+
+func MakeTrustedGitContext(mc ModifiableContext, gitURL string,
+	idHash []byte, cwdHash []byte) TrustedGitContext {
+	return &trustedGitContext{mc, gitURL, idHash, cwdHash}
 }

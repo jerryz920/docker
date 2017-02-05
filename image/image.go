@@ -63,6 +63,7 @@ type Image struct {
 	History    []History `json:"history,omitempty"`
 	OSVersion  string    `json:"os.version,omitempty"`
 	OSFeatures []string  `json:"os.features,omitempty"`
+	Source     Source    `json:"source,omitempty"`
 
 	// rawJSON caches the immutable JSON associated with this image.
 	rawJSON []byte

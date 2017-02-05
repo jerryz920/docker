@@ -11,6 +11,8 @@ const (
 	Env         = "env"
 	Expose      = "expose"
 	From        = "from"
+	Git         = "git"
+	Tapcon      = "tapcon"
 	Healthcheck = "healthcheck"
 	Label       = "label"
 	Maintainer  = "maintainer"
@@ -33,6 +35,8 @@ var Commands = map[string]struct{}{
 	Env:         {},
 	Expose:      {},
 	From:        {},
+	Git:         {},
+	Tapcon:      {},
 	Healthcheck: {},
 	Label:       {},
 	Maintainer:  {},

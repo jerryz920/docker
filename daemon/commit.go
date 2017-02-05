@@ -141,6 +141,9 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
+	//// YAN TODO:
+	////   we need to remove the provenance label here if any. Because the
+	////   file content may have changed, and that's not true for the new image
 	if c.MergeConfigs {
 		if err := merge(newConfig, container.Config); err != nil {
 			return "", err
@@ -173,6 +176,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		osFeatures = img.OSFeatures
 	}
 
+	fmt.Printf("debug rootfs chain ID = %s, container image ID %s\n", rootFS.ChainID(), container.ImageID)
 	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
 	if err != nil {
 		return "", err
@@ -187,6 +191,12 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		EmptyLayer: true,
 	}
 
+	if p := l.Parent(); p != nil {
+		fmt.Printf("debug: layer ID %s, parent %s\n", l.ChainID(), p.ChainID())
+	} else {
+		fmt.Printf("debug: layer ID %s, parent none\n", l.ChainID())
+	}
+
 	if diffID := l.DiffID(); layer.DigestSHA256EmptyTar != diffID {
 		h.EmptyLayer = false
 		rootFS.Append(diffID)
@@ -194,7 +204,8 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 
 	history = append(history, h)
 
-	config, err := json.Marshal(&image.Image{
+	//// extract and process TapconData if it is enabled
+	newImage := &image.Image{
 		V1Image: image.V1Image{
 			DockerVersion:   dockerversion.Version,
 			Config:          newConfig,
@@ -209,7 +220,12 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		History:    history,
 		OSFeatures: osFeatures,
 		OSVersion:  osVersion,
-	})
+	}
+	if daemon.TapconModeOn() {
+		daemon.tapconImageBuilt(newImage, c.TapconData)
+	}
+
+	config, err := json.Marshal(newImage)
 
 	if err != nil {
 		return "", err
