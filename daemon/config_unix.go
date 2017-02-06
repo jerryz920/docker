@@ -38,7 +38,7 @@ type Config struct {
 	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
 
 	// Tapcon field
-	UseTapcon bool
+	UseTapcon bool `json:"tapcon,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific

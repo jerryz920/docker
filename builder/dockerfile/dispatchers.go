@@ -253,13 +253,8 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
 	case "ONBUILD":
-<<<<<<< HEAD
-		return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
-	case "MAINTAINER", "FROM":
-=======
 		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
 	case "MAINTAINER", "FROM", "TAPCON":
->>>>>>> 154265484adfbfd746c9549294b244af2f6083ff
 		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
 	}
 
