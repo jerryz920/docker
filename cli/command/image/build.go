@@ -153,10 +153,14 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		buildBuff = bytes.NewBuffer(nil)
 	}
 
+	remote := ""
+
 	switch {
 	case specifiedContext == "-":
 		buildCtx, relDockerfile, err = build.GetContextFromReader(dockerCli.In(), options.dockerfileName)
 	case urlutil.IsGitURL(specifiedContext):
+		/// There will be many redundant things but we wont worry about it for now.
+		remote = specifiedContext
 		tempDir, relDockerfile, err = build.GetContextFromGitURL(specifiedContext, options.dockerfileName)
 	case urlutil.IsURL(specifiedContext):
 		buildCtx, relDockerfile, err = build.GetContextFromURL(progBuff, specifiedContext, options.dockerfileName)
@@ -247,7 +251,9 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		progressOutput = &lastProgressOutput{output: progressOutput}
 	}
 
-	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
+	var body io.Reader
+
+	body = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
 	var memory int64
 	if options.memory != "" {
@@ -306,6 +312,10 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		SecurityOpt:    options.securityOpt,
 		NetworkMode:    options.networkMode,
 		Squash:         options.squash,
+	}
+
+	if remote != "" {
+		buildOptions.RemoteContext = remote
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

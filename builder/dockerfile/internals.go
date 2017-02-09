@@ -70,18 +70,14 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	autoConfig.Cmd = autoCmd
 
 	sourceInfo := image.Source{}
-	if b.docker.TapconModeOn() && b.commitSource {
-		gitContext, ok := b.context.(builder.TrustedGitContext)
-		if !ok {
-			return fmt.Errorf("Tapcon: build context is not trusted git, bug.")
-		}
-		sourceInfo.Repo = gitContext.GitURL()
-		sourceInfo.Revision = hex.EncodeToString(gitContext.IdentityHash())
-		sourceInfo.Dir = hex.EncodeToString(gitContext.CwdHash())
+	if b.docker.TapconModeOn() && b.commitSource && b.sourceCtx != nil {
+		sourceInfo.Repo = b.sourceCtx.GitURL()
+		sourceInfo.Revision = hex.EncodeToString(b.sourceCtx.IdentityHash())
+		sourceInfo.Dir = hex.EncodeToString(b.sourceCtx.CwdHash())
+		fmt.Fprintf(b.Stdout, "Tapcon, filling the source info, %v\n", sourceInfo)
 		/// the argument currently serves as only a placeholder
 	}
 
-	fmt.Printf("debug: Before commit the cmd: %v\n", autoCmd)
 	commitCfg := &backend.ContainerCommitConfig{
 		ContainerCommitConfig: types.ContainerCommitConfig{
 			Author: b.maintainer,

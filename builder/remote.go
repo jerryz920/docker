@@ -70,21 +70,20 @@ func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.
 // DetectContextFromRemoteURL returns a context and in certain cases the name of the dockerfile to be used
 // irrespective of user input.
 // progressReader is only used if remoteURL is actually a URL (not empty, and not a Git endpoint).
-func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, createProgressReader func(in io.ReadCloser) io.ReadCloser, backend Backend) (context ModifiableContext, dockerfileName string, err error) {
+func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, createProgressReader func(in io.ReadCloser) io.ReadCloser, backend Backend) (context ModifiableContext, sourceCtx TrustedGitContext, dockerfileName string, err error) {
 
+	sourceCtx = nil
 	switch {
 	case remoteURL == "":
 		if backend.TapconModeOn() {
-			err = fmt.Errorf("Tapcon mode supports only Git build")
-			return nil, "", err
+			err = fmt.Errorf("Tapcon mode should use only Git build")
 		}
 		context, err = MakeTarSumContext(r)
 	case urlutil.IsGitURL(remoteURL):
-		context, err = MakeGitContext(remoteURL)
+		context, sourceCtx, err = MakeGitContext(remoteURL)
 	case urlutil.IsURL(remoteURL):
 		if backend.TapconModeOn() {
-			err = fmt.Errorf("Tapcon mode supports only Git build")
-			return nil, "", err
+			err = fmt.Errorf("Tapcon mode should use only Git build")
 		}
 		context, err = MakeRemoteContext(remoteURL, map[string]func(io.ReadCloser) (io.ReadCloser, error){
 			httputils.MimeTypes.TextPlain: func(rc io.ReadCloser) (io.ReadCloser, error) {

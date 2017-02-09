@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/docker/docker/pkg/archive"
@@ -8,15 +9,15 @@ import (
 )
 
 // MakeGitContext returns a Context from gitURL that is cloned in a temporary directory.
-func MakeGitContext(gitURL string) (ModifiableContext, error) {
+func MakeGitContext(gitURL string) (ModifiableContext, TrustedGitContext, error) {
 	root, err := gitutils.Clone(gitURL)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	c, err := archive.Tar(root, archive.Uncompressed)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	defer func() {
@@ -33,13 +34,15 @@ func MakeGitContext(gitURL string) (ModifiableContext, error) {
 	/// can't be modified by others via future changes. If an image is pulled,
 	/// the docker daemon will also check if such "Trust" occurs, and it will
 	/// merge them as Json dict of two keys: commit, dir
-	if cwdHash, treeHash, err := gitutils.GitGetIdentity(); err != nil {
-		return nil, err
+	if cwdHash, treeHash, err := gitutils.GitGetIdentity(root); err != nil {
+		fmt.Printf("error on identity %v\n", err)
+		return nil, nil, err
 	} else {
 		if tarContext, err := MakeTarSumContext(c); err != nil {
-			return nil, err
+			fmt.Printf("error on maketar %v\n", err)
+			return nil, nil, err
 		} else {
-			return MakeTrustedGitContext(tarContext, gitURL, treeHash, cwdHash), nil
+			return tarContext, MakeTrustedGitContext(gitURL, treeHash, cwdHash), nil
 		}
 
 	}
@@ -47,7 +50,6 @@ func MakeGitContext(gitURL string) (ModifiableContext, error) {
 }
 
 type trustedGitContext struct {
-	ModifiableContext
 	gitURL       string
 	identityHash []byte
 	cwdHash      []byte
@@ -65,7 +67,7 @@ func (tc *trustedGitContext) CwdHash() []byte {
 	return tc.cwdHash
 }
 
-func MakeTrustedGitContext(mc ModifiableContext, gitURL string,
+func MakeTrustedGitContext(gitURL string,
 	idHash []byte, cwdHash []byte) TrustedGitContext {
-	return &trustedGitContext{mc, gitURL, idHash, cwdHash}
+	return &trustedGitContext{gitURL, idHash, cwdHash}
 }

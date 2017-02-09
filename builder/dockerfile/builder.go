@@ -61,6 +61,7 @@ type Builder struct {
 	docker    builder.Backend
 	context   builder.Context
 	clientCtx context.Context
+	sourceCtx builder.TrustedGitContext
 	cancel    context.CancelFunc
 
 	dockerfile       *parser.Node
@@ -103,7 +104,7 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
-	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc, bm.backend)
+	buildContext, sourceCtx, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc, bm.backend)
 	if err != nil {
 		return "", err
 	}
@@ -116,7 +117,7 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if len(dockerfileName) > 0 {
 		buildOptions.Dockerfile = dockerfileName
 	}
-	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, nil)
+	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, sourceCtx, nil)
 	if err != nil {
 		return "", err
 	}
@@ -126,7 +127,8 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, buildContext builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
+func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, buildContext builder.Context, sourceContext builder.TrustedGitContext,
+	dockerfile io.ReadCloser) (b *Builder, err error) {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
@@ -136,6 +138,7 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
 		clientCtx:        ctx,
+		sourceCtx:        sourceContext,
 		cancel:           cancel,
 		options:          config,
 		Stdout:           os.Stdout,
@@ -152,8 +155,6 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		},
 	}
 	if icb, ok := backend.(builder.ImageCacheBuilder); ok {
-		fmt.Printf("debug: image cache builder type %T, CacheFrom %v\n", icb,
-			config.CacheFrom)
 		b.imageCache = icb.MakeImageCache(config.CacheFrom)
 	}
 
@@ -247,7 +248,6 @@ func (b *Builder) processLabels() error {
 // * Print a happy message and return the image ID.
 //
 func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
-	fmt.Printf("debug: Called dockerfile.build, image id: %s\n", b.image)
 	b.Stdout = stdout
 	b.Stderr = stderr
 	b.Output = out
@@ -268,13 +268,11 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
-	if b.docker.TapconModeOn() {
-		_, ok := b.context.(builder.TrustedGitContext)
-		if !ok {
-			return "", fmt.Errorf("Tapcon: build context is not trusted git, bug.")
-		}
+	fmt.Fprintf(b.Stdout, "Tapcon: adding source: %v\n", b.sourceCtx)
+	if b.docker.TapconModeOn() && b.sourceCtx != nil {
 		_, node, err := parser.ParseLine("TAPCON add_source", &b.directive, false)
 		if err != nil {
+			logrus.Debugf("parsing tapcon line: %v", err)
 			return "", err
 		}
 		b.dockerfile.Children = append(b.dockerfile.Children, node)
@@ -366,8 +364,7 @@ func (b *Builder) Cancel() {
 //
 // TODO: Remove?
 func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
-	fmt.Printf("debug: Called BuildFromConfig, changes = (%v)\n", changes)
-	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
+	b, err := NewBuilder(context.Background(), nil, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}

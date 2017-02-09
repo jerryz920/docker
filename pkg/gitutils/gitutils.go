@@ -43,8 +43,8 @@ func Clone(remoteURL string) (string, error) {
 }
 
 /// It assumes the working dir is properly set, so this might not be thread safe
-func GitGetIdentity() ([]byte, []byte, error) {
-	rev_args := []string{"rev-parse", "--show-prefix", "HEAD"}
+func GitGetIdentity(root string) ([]byte, []byte, error) {
+	rev_args := []string{"-C", root, "rev-parse", "--show-prefix", "HEAD"}
 	if output, err := git(rev_args...); err != nil {
 		return []byte{}, []byte{}, err
 	} else {

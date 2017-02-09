@@ -51,7 +51,6 @@ type ModifiableContext interface {
 }
 
 type TrustedGitContext interface {
-	ModifiableContext
 	// This provides the git URL used for build
 	GitURL() string
 	// This provides a hash from git that can not be spoofed
