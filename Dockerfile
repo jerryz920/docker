@@ -36,6 +36,7 @@ RUN echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > /et
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
+	faketime \
 	apparmor \
 	apt-utils \
 	aufs-tools \
@@ -84,6 +85,8 @@ RUN apt-get update && apt-get install -y \
 	&& pip install awscli==1.10.15
 # Get lvm2 source for compiling statically
 ENV LVM2_VERSION 2.02.103
+ENV BUILD_TIME 2015-08-15 17:16:49
+
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
@@ -91,11 +94,11 @@ RUN mkdir -p /usr/local/lvm2 \
 
 # Compile and install lvm2
 RUN cd /usr/local/lvm2 \
-	&& ./configure \
+	&& faketime "$BUILD_TIME" ./configure \
 		--build="$(gcc -print-multiarch)" \
 		--enable-static_link \
-	&& make device-mapper \
-	&& make install_device-mapper
+	&& faketime "$BUILD_TIME" make device-mapper \
+	&& faketime "$BUILD_TIME" make install_device-mapper
 # See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Configure the container for OSX cross compilation
@@ -106,7 +109,7 @@ RUN set -x \
 	&& git clone https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \
 	&& ( cd $OSXCROSS_PATH && git checkout -q $OSX_CROSS_COMMIT) \
 	&& curl -sSL https://s3.dockerproject.org/darwin/v2/${OSX_SDK}.tar.xz -o "${OSXCROSS_PATH}/tarballs/${OSX_SDK}.tar.xz" \
-	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
+	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 faketime "$BUILD_TIME" ${OSXCROSS_PATH}/build.sh
 ENV PATH /osxcross/target/bin:$PATH
 
 # Install seccomp: the version shipped in trusty is too old
@@ -117,9 +120,9 @@ RUN set -x \
 		| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
 	&& ( \
 		cd "$SECCOMP_PATH" \
-		&& ./configure --prefix=/usr/local \
-		&& make \
-		&& make install \
+		&& faketime "$BUILD_TIME" ./configure --prefix=/usr/local \
+		&& faketime "$BUILD_TIME" make \
+		&& faketime "$BUILD_TIME" make install \
 		&& ldconfig \
 	) \
 	&& rm -rf "$SECCOMP_PATH"
@@ -173,10 +176,10 @@ RUN set -x \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
 	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT") \
 	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
-		go build -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
+		faketime "$BUILD_TIME" go build -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
 	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT_SCHEMA1") \
 	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
-		go build -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry \
+		faketime "$BUILD_TIME" go build -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry \
 	&& rm -rf "$GOPATH"
 
 # Install notary and notary-server
@@ -186,9 +189,9 @@ RUN set -x \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
 	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
-		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
+		faketime "$BUILD_TIME" go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
 	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
-		go build -o /usr/local/bin/notary github.com/docker/notary/cmd/notary \
+		faketime "$BUILD_TIME" go build -o /usr/local/bin/notary github.com/docker/notary/cmd/notary \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
@@ -205,7 +208,7 @@ RUN pip install yamllint==1.5.0
 ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
 RUN git clone https://github.com/go-swagger/go-swagger.git /go/src/github.com/go-swagger/go-swagger \
 	&& (cd /go/src/github.com/go-swagger/go-swagger && git checkout -q $GO_SWAGGER_COMMIT) \
-	&& go install -v github.com/go-swagger/go-swagger/cmd/swagger
+	&& faketime "$BUILD_TIME" go install -v github.com/go-swagger/go-swagger/cmd/swagger
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN git config --global user.email 'docker-dummy@example.com'
