@@ -26,7 +26,7 @@ install_runc() {
 	git fetch fork
 	git checkout -b dev fork/master
 	#git checkout -q "$RUNC_COMMIT"
-	make BUILDTAGS="$RUNC_BUILDTAGS" $1
+	faketime "$BUILD_TIME" make BUILDTAGS="$RUNC_BUILDTAGS" $1
 	cp runc /usr/local/bin/docker-runc
 }
 
@@ -38,7 +38,7 @@ install_containerd() {
 	git fetch fork
 	git checkout -b dev fork/master
 	#git checkout -q "$CONTAINERD_COMMIT"
-	make $1
+	faketime "$BUILD_TIME" make $1
 	cp bin/containerd /usr/local/bin/docker-containerd
 	cp bin/containerd-shim /usr/local/bin/docker-containerd-shim
 	cp bin/ctr /usr/local/bin/docker-containerd-ctr
@@ -49,7 +49,7 @@ install_proxy() {
 	git clone https://github.com/docker/libnetwork.git "$GOPATH/src/github.com/docker/libnetwork"
 	cd "$GOPATH/src/github.com/docker/libnetwork"
 	git checkout -q "$LIBNETWORK_COMMIT"
-	go build -ldflags="$PROXY_LDFLAGS" -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
+	faketime "$BUILD_TIME" go build -ldflags="$PROXY_LDFLAGS" -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
 }
 
 install_bindata() {
@@ -57,7 +57,7 @@ install_bindata() {
     git clone https://github.com/jteeuwen/go-bindata "$GOPATH/src/github.com/jteeuwen/go-bindata"
     cd $GOPATH/src/github.com/jteeuwen/go-bindata
     git checkout -q "$BINDATA_COMMIT"
-	go build -o /usr/local/bin/go-bindata github.com/jteeuwen/go-bindata/go-bindata
+	faketime "$BUILD_TIME" go build -o /usr/local/bin/go-bindata github.com/jteeuwen/go-bindata/go-bindata
 }
 
 for prog in "$@"
@@ -67,7 +67,7 @@ do
 			echo "Install tomlv version $TOMLV_COMMIT"
 			git clone https://github.com/BurntSushi/toml.git "$GOPATH/src/github.com/BurntSushi/toml"
 			cd "$GOPATH/src/github.com/BurntSushi/toml" && git checkout -q "$TOMLV_COMMIT"
-			go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv
+			faketime "$BUILD_TIME" go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv
 			;;
 
 		runc)
@@ -92,7 +92,7 @@ do
 			cd "$GOPATH/tini"
 			git checkout -q "$TINI_COMMIT"
 			cmake -DMINIMAL=ON .
-			make tini-static
+			faketime "$BUILD_TIME" make tini-static
 			cp tini-static /usr/local/bin/docker-init
 			;;
 
@@ -110,7 +110,7 @@ do
 			git clone https://github.com/LK4D4/vndr.git "$GOPATH/src/github.com/LK4D4/vndr"
 			cd "$GOPATH/src/github.com/LK4D4/vndr"
 			git checkout -q "$VNDR_COMMIT"
-			go build -v -o /usr/local/bin/vndr .
+			faketime "$BUILD_TIME" go build -v -o /usr/local/bin/vndr .
 			;;
 
         bindata)
