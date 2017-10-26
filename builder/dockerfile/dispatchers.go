@@ -343,6 +343,11 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	args = handleJSONArgs(args, attributes)
 
+	/// when using tapcon, we trace run command, and do not use shell to run it
+	//if b.docker.TapconModeOn() && b.sourceCtx != nil {
+	//	args = append(b.TraceCmdPrefix(b.traceId), args...)
+	//	logrus.Debug("Tapcon trace cmd : ", args)
+	//} else
 	if !attributes["json"] {
 		args = append(getShell(b.runConfig), args...)
 	}

@@ -10,6 +10,10 @@ import (
 	"github.com/docker/docker/container"
 )
 
+// #cgo LDFLAGS: -lport
+// #include "libport.h"
+import "C"
+
 // ContainerStop looks for the given container and terminates it,
 // waiting the given number of seconds before forcefully killing the
 // container. If a negative number of seconds is given, ContainerStop
@@ -43,6 +47,13 @@ func (daemon *Daemon) ContainerStop(name string, seconds *int) error {
 func (daemon *Daemon) containerStop(container *container.Container, seconds int) error {
 	if !container.IsRunning() {
 		return nil
+	}
+	if daemon.TapconModeOn() && container.Config.UseTapcon {
+		if err := daemon.tapconRemoveFirewall(container); err != nil {
+			logrus.Errorf("Error tearing down tapcon firewall for container: %s", err)
+		}
+		pid := C.uint64_t(container.GetPID())
+		C.delete_principal(pid)
 	}
 
 	daemon.stopHealthchecks(container)

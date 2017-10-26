@@ -244,6 +244,29 @@ COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
 COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
 RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy bindata
 
+# install necessary library for tapcon
+
+RUN apt-get update && apt-get install -y libboost-all-dev libssl-dev cmake
+RUN mkdir -p /opt/net && cd /opt/net && \
+	git clone -b dev https://github.com/jerryz920/cpprestsdk.git casablanca && \
+	cd casablanca/Release && \
+	mkdir -p build.release && cd build.release && \
+	cmake .. -DCMAKE_BUILD_TYPE=Release && \
+	make -j && make install
+
+#RUN mkdir -p /opt/libport && cd /opt/libport/ && \
+#	git clone https://github.com/jerryz920/libport.git libport && \
+#	cd libport/libport-core/src/main/native/ && \
+#	bash build.sh && cd build.Release && \
+#	make install
+COPY libport /opt/libport
+RUN  cd /opt/libport && \
+	gcc -fPIC stub.c -c && \
+	ar q libport.a stub.o && \
+	gcc -fPIC -shared stub.o -o libport.so && \
+	cp libport.so libport.a /usr/lib/ && \
+	cp libport.h /usr/include
+
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 

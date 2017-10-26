@@ -38,7 +38,8 @@ type Config struct {
 	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
 
 	// Tapcon field
-	UseTapcon bool `json:"tapcon,omitempty"`
+	UseTapcon             bool   `json:"tapcon,omitempty"`
+	TapconMetadataService string `json:"metadata-service,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific
@@ -93,6 +94,7 @@ func (config *Config) InstallFlags(flags *pflag.FlagSet) {
 	flags.Int64Var(&config.CPURealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds")
 	flags.StringVar(&config.SeccompProfile, "seccomp-profile", "", "Path to seccomp profile")
 	flags.BoolVar(&config.UseTapcon, "tapcon", false, "Set Tapcon mode for trusted container building")
+	flags.StringVar(&config.TapconMetadataService, "metadata-service", "", "Metadata service url for tapcon, in form of http://<ip>:<port>/ ")
 
 	config.attachExperimentalFlags(flags)
 }

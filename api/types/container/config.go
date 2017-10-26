@@ -59,4 +59,6 @@ type Config struct {
 	StopSignal      string              `json:",omitempty"` // Signal to stop a container
 	StopTimeout     *int                `json:",omitempty"` // Timeout (in seconds) to stop a container
 	Shell           strslice.StrSlice   `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
+	UseTapcon       bool                `json:",omitempty"`
+	FilterOpts      string              `json:",omitempty"`
 }

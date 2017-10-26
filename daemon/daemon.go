@@ -6,6 +6,7 @@
 package daemon
 
 import (
+	"C"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -57,6 +58,12 @@ import (
 	"github.com/docker/libtrust"
 	"github.com/pkg/errors"
 )
+import "unsafe"
+
+// #include "libport.h"
+// #include <stdlib.h>
+// #cgo LDFLAGS: -lport
+import "C"
 
 var (
 	// DefaultRuntimeBinary is the default runtime to be used by
@@ -119,10 +126,25 @@ func (daemon *Daemon) HasExperimental() bool {
 }
 
 func (daemon *Daemon) TapconModeOn() bool {
-	if daemon.configStore.UseTapcon {
+	if daemon.configStore.UseTapcon && daemon.configStore.TapconMetadataService != "" {
 		return true
 	}
 	return false
+}
+
+func (daemon *Daemon) InitTapcon() {
+	logrus.Infof("Initializing Tapcon: %v, %v\n", daemon.configStore.UseTapcon,
+		daemon.configStore.TapconMetadataService)
+	if daemon.TapconModeOn() {
+		serverUrl := C.CString(daemon.configStore.TapconMetadataService)
+		persistPath := C.CString("/tmp/tapcon-config.json")
+		ret, _ := C.libport_init(serverUrl, persistPath, 0)
+		if ret != 0 {
+			logrus.Errorf("error initialize libport: %d", ret)
+		}
+		C.free(unsafe.Pointer(serverUrl))
+		C.free(unsafe.Pointer(persistPath))
+	}
 }
 
 func (daemon *Daemon) restore() error {

@@ -26,6 +26,8 @@ import (
 type runOptions struct {
 	detach     bool
 	sigProxy   bool
+	useTapCon  bool
+	filterOpts string
 	name       string
 	detachKeys string
 }
@@ -54,6 +56,8 @@ func NewRunCommand(dockerCli *command.DockerCli) *cobra.Command {
 	// These are flags not stored in Config/HostConfig
 	flags.BoolVarP(&opts.detach, "detach", "d", false, "Run container in background and print container ID")
 	flags.BoolVar(&opts.sigProxy, "sig-proxy", true, "Proxy received signals to the process")
+	flags.BoolVar(&opts.useTapCon, "use-tapcon", false, "use tapcon or not")
+	flags.StringVar(&opts.filterOpts, "filter-opts", "", "the environment variable to exclude from config hash")
 	flags.StringVar(&opts.name, "name", "", "Assign a name to the container")
 	flags.StringVar(&opts.detachKeys, "detach-keys", "", "Override the key sequence for detaching a container")
 
@@ -85,6 +89,11 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		reportError(stderr, cmdPath, err.Error(), true)
 		return cli.StatusError{StatusCode: 125}
 	}
+
+	if opts.useTapCon {
+		config.UseTapcon = true
+	}
+	config.FilterOpts = opts.filterOpts
 
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
 		return ErrConflictRestartPolicyAndAutoRemove

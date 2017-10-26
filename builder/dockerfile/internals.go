@@ -500,6 +500,12 @@ func (b *Builder) create() (string, error) {
 		Resources:   resources,
 		NetworkMode: container.NetworkMode(b.options.NetworkMode),
 	}
+	/// allow tracing during build!
+	if b.docker.TapconModeOn() && b.sourceCtx != nil {
+		// pure linux hack
+		hostConfig.CapAdd = strslice.StrSlice{"sys_ptrace"}
+		hostConfig.Binds = b.setupTraceVolume()
+	}
 
 	config := *b.runConfig
 

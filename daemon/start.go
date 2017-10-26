@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"C"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -17,6 +18,15 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/runconfig"
 )
+import (
+	"crypto/sha256"
+	"unsafe"
+)
+
+// #include <stdlib.h>
+// #include "libport.h"
+// #cgo LDFLAGS: -lport
+import "C"
 
 // ContainerStart starts a container.
 func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
@@ -192,6 +202,104 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 		return fmt.Errorf("%s", errDesc)
 	}
+	if daemon.TapconModeOn() && container.Config.UseTapcon {
+		// compute sha256 of the configuration file
+		logrus.Info("TapconDebug: enter tapcon mode, container = %p", container)
+		hash := sha256.New()
+		/////sort
+		filterMap := make(map[string]bool)
+		if container.Config.FilterOpts != "" {
+			toFilters := strings.Split(container.Config.FilterOpts, ";")
+			for _, k := range toFilters {
+				filterMap[k] = true
+			}
+		}
+		for _, env := range container.Config.Env {
+			name := strings.SplitN(env, "=", 2)[0]
+			if _, ok := filterMap[name]; !ok {
+				hash.Write([]byte(env))
+			} else {
+				logrus.Debug("filtered env: ", name)
+			}
+		}
+
+		//hash.Write([]byte(strings.Join(container.Config.Entrypoint, " ")))
+		//hash.Write([]byte(strings.Join(container.Config.Cmd, " ")))
+		//for _, label := range container.Config.Labels {
+		//	hash.Write([]byte(label))
+		//}
+		//hash.Write([]byte(strings.Join(container.Config.Shell, " ")))
+		//hash.Write([]byte(container.Config.WorkingDir))
+		////sort
+		//for k := range container.Config.Volumes {
+		//	hash.Write([]byte(k))
+		//}
+		//for port, _ := range container.Config.ExposedPorts {
+		//	hash.Write([]byte(port))
+		//}
+
+		//for _, cap := range container.HostConfig.CapAdd {
+		//	hash.Write([]byte(cap))
+		//}
+		//for _, cap := range container.HostConfig.CapDrop {
+		//	hash.Write([]byte(cap))
+		//}
+		//for _, dns := range container.HostConfig.DNS {
+		//	hash.Write([]byte(dns))
+		//}
+		//for _, dnsSearch := range container.HostConfig.DNSSearch {
+		//	hash.Write([]byte(dnsSearch))
+		//}
+		//for _, dnsOpt := range container.HostConfig.DNSOptions {
+		//	hash.Write([]byte(dnsOpt))
+		//}
+		//for _, dev := range container.HostConfig.Devices {
+		//	hash.Write([]byte(dev.PathOnHost))
+		//}
+		//hash.Write([]byte(container.HostConfig.InitPath))
+		//hash.Write([]byte(container.HostConfig.IpcMode))
+		//hash.Write([]byte(container.HostConfig.PidMode))
+		//hash.Write([]byte(container.HostConfig.NetworkMode))
+		//if container.HostConfig.Privileged {
+		//	hash.Write([]byte{1})
+		//} else {
+		//	hash.Write([]byte{0})
+		//}
+		//if container.HostConfig.PublishAllPorts {
+		//	hash.Write([]byte{1})
+		//} else {
+		//	hash.Write([]byte{0})
+		//}
+		//for _, link := range container.HostConfig.Links {
+		//	hash.Write([]byte(link))
+		//}
+		//hash.Write([]byte(container.HostConfig.Runtime))
+		//hash.Write([]byte(container.HostConfig.UTSMode))
+		//hash.Write([]byte(container.HostConfig.UsernsMode))
+		//hash.Write([]byte(container.HostConfig.VolumeDriver))
+
+		cimage := C.CString(container.ImageID.String())
+		//var configStr string
+		//if container.Config.FilterOpts != "" {
+		//  configStr = container.Config.FilterOpts + ";"
+		//}
+		//chash := C.CString(configStr + hex.EncodeToString(hash.Sum(nil)))
+		chash := C.CString("default")
+		/// We can directly obtain it since it's still locked!
+		pid := C.uint64_t(container.Pid)
+		logrus.Info("TapconDebug: before create principal")
+		pmin, _ := C.create_principal(pid, cimage, chash, 50)
+		if pmin < 0 {
+			logrus.Info("fail to create principal")
+		}
+		C.free(unsafe.Pointer(cimage))
+		C.free(unsafe.Pointer(chash))
+		if err := daemon.tapconSetupFirewall(container); err != nil {
+			logrus.Errorf("Error setting up tapcon firewall for container: %s", err)
+		}
+		logrus.Info("TapconDebug: finish start")
+
+	}
 
 	containerActions.WithValues("start").UpdateSince(start)
 
@@ -202,6 +310,10 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (daemon *Daemon) Cleanup(container *container.Container) {
 	daemon.releaseNetwork(container)
+
+	if daemon.TapconModeOn() && container.Config.UseTapcon {
+		daemon.tapconRemoveFirewall(container)
+	}
 
 	container.UnmountIpcMounts(detachMounted)
 

@@ -2,13 +2,16 @@ package dockerfile
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
+	"unsafe"
 
 	"github.com/Sirupsen/logrus"
 	apierrors "github.com/docker/docker/api/errors"
@@ -16,6 +19,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
@@ -23,6 +27,11 @@ import (
 	perrors "github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
+
+// #cgo LDFLAGS: -lport
+// #include <stdlib.h>
+// #include "libport.h"
+import "C"
 
 var validCommitCommands = map[string]bool{
 	"cmd":         true,
@@ -86,6 +95,10 @@ type Builder struct {
 	imageCache builder.ImageCache
 	from       builder.Image
 	source     image.Source
+	traceKey   string
+	traceName  string
+	traceCmd   *exec.Cmd
+	traceId    int
 }
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.
@@ -117,6 +130,12 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if len(dockerfileName) > 0 {
 		buildOptions.Dockerfile = dockerfileName
 	}
+
+	if bm.backend.TapconModeOn() && sourceCtx != nil {
+		/// insert a strace binary into the build context
+		buildContext.Add("/usr/bin/strace")
+	}
+
 	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, sourceCtx, nil)
 	if err != nil {
 		return "", err
@@ -270,12 +289,26 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 
 	fmt.Fprintf(b.Stdout, "Tapcon: adding source: %v\n", b.sourceCtx)
 	if b.docker.TapconModeOn() && b.sourceCtx != nil {
+		/// add tracing utility (FIXME: this could be overwritten somehow.. Prevent it)
+		_, straceNode, err := parser.ParseLine("COPY strace /usr/bin/", &b.directive, false)
+		tmpChildren := make([]*parser.Node, 0)
+		for _, n := range b.dockerfile.Children {
+			if n.Value != command.From {
+				tmpChildren = append(tmpChildren, straceNode)
+			}
+			tmpChildren = append(tmpChildren, n)
+		}
+		b.dockerfile.Children = tmpChildren
+
+		//// add a last node for committing source
 		_, node, err := parser.ParseLine("TAPCON add_source", &b.directive, false)
 		if err != nil {
 			logrus.Debugf("parsing tapcon line: %v", err)
 			return "", err
 		}
 		b.dockerfile.Children = append(b.dockerfile.Children, node)
+		/// start tracing the build process
+		b.TraceInit("build")
 	}
 
 	var shortImgID string
@@ -343,6 +376,23 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		if err := b.docker.TagImageWithReference(imageID, rt); err != nil {
 			return "", err
 		}
+	}
+
+	if b.docker.TapconModeOn() && b.sourceCtx != nil {
+		// There is no problem to call stop trace twice, the command will
+		// be reset.
+		cimageID := C.CString(imageID.String())
+		curl := C.CString(b.sourceCtx.GitURL())
+		crev := C.CString(string(b.sourceCtx.IdentityHash()) + hex.EncodeToString(b.sourceCtx.CwdHash()))
+		ccwd := C.CString("default")
+		ret, _ := C.create_image(cimageID, curl, crev, ccwd)
+		if ret != 0 {
+			logrus.Errorf("error creating image %s in metadata service", imageID.String())
+		}
+		C.free(unsafe.Pointer(cimageID))
+		C.free(unsafe.Pointer(curl))
+		C.free(unsafe.Pointer(crev))
+		C.free(unsafe.Pointer(ccwd))
 	}
 
 	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)

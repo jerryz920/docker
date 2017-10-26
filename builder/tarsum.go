@@ -3,6 +3,7 @@ package builder
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -156,4 +157,14 @@ func (c *tarSumContext) Remove(path string) error {
 		return err
 	}
 	return os.RemoveAll(fullpath)
+}
+
+func (c *tarSumContext) Add(path string) error {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	fname := filepath.Join(c.root, filepath.Base(path))
+	err = ioutil.WriteFile(fname, data, 0755)
+	return err
 }

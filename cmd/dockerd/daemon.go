@@ -48,6 +48,11 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// #cgo LDFLAGS: -lport
+// #include "libport.h"
+// #include <stdlib.h>
+import "C"
+
 const (
 	flagDaemonConfigFile = "config-file"
 )
@@ -273,6 +278,8 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 			return err
 		}
 	}
+	// set up Tapcon
+	d.InitTapcon()
 
 	name, _ := os.Hostname()
 

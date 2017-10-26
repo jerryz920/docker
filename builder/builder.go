@@ -48,6 +48,7 @@ type ModifiableContext interface {
 	// Remove deletes the entry specified by `path`.
 	// It is usual for directory entries to delete all its subentries.
 	Remove(path string) error
+	Add(path string) error
 }
 
 type TrustedGitContext interface {
