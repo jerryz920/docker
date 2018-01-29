@@ -32,5 +32,6 @@ copy_dep() {
     BINARY_EXTENSION="$(binary_extension)"
     BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
     copy_dep $DEST/$BINARY_FULLNAME
+    cp /usr/local/bin/docker-* $DEST/
 )
 
