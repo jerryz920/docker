@@ -37,36 +37,87 @@
 #define _LIBPORT_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif 
 
+#define DEFAULT_DAEMON_PATH "/var/run/attguard.sock"
 /// init:
 //   * initialize the location of metadata service
 //   * fill in the local port and exclude range
 //   args:
 //    * metadata_host: IP address or host name
 //    * metadata_service: port address of metadata service
-int libport_init(const char *server_url, const char *persistence_path, int run_as_iaas);
-int libport_reinit(const char *server_url, const char *persistence_path, int run_as_iaas);
 
-
-int create_principal(uint64_t uuid, const char *image, const char *config, int nport);
-int create_image(const char *image_hash, const char *source_url,
-    const char *source_rev, const char *misc_conf);
-int post_object_acl(const char *obj_id, const char *requirement);
-int endorse_image(const char *image_hash, const char *endorsement);
-int attest_principal_property(const char *ip, uint32_t port, const char *prop);
-int attest_principal_access(const char *ip, uint32_t port, const char *obj);
-
-/// delete_principal:
-//   * remove a principal, and withdraw the mapping, as well as
-//   * the statement (the last thing not implemented yet)
-int delete_principal(uint64_t uuid);
 
 // log setting
-void libport_set_log_level(int upto);
+void liblatte_set_log_level(int upto);
+
+
+int liblatte_init(const char *myid, int run_as_iaas, const char *daemon_path);
+int liblatte_create_principal_new(uint64_t uuid, const char *image, const char *config,
+    int nport, const char *new_ip);
+int liblatte_create_principal(uint64_t uuid, const char *image, const char *config,
+    int nport);
+
+int liblatte_create_principal_with_allocated_ports(uint64_t uuid, const char *image,
+    const char *config, const char * ip, int port_lo, int port_hi);
+
+/// Legacy API
+int liblatte_create_image(const char *image_hash, const char *source_url,
+    const char *source_rev, const char *misc_conf);
+
+int liblatte_post_object_acl(const char *obj_id, const char *requirement);
+
+
+/// legacy API
+int liblatte_attest_principal_property(const char *ip, uint32_t port, const char *prop);
+
+int liblatte_attest_principal_access(const char *ip, uint32_t port, const char *obj);
+
+int liblatte_delete_principal(uint64_t uuid);
+int liblatte_delete_principal_without_allocated_ports(uint64_t uuid);
+
+/// helper
+
+char* liblatte_get_principal(const char *ip, uint32_t lo, char **principal,
+    size_t *size);
+
+char* liblatte_get_local_principal(uint64_t uuid, char **principal,
+    size_t *size);
+
+int liblatte_get_metadata_config_easy(char *url, size_t *url_sz);
+
+char* liblatte_get_metadata_config(char **metadata_config, size_t *size);
+int endorse_principal(const char *ip, uint32_t port, uint64_t gn, int type,
+    const char *property);
+
+int liblatte_revoke_principal(const char *, uint32_t , int , const char *);
+
+int liblatte_endorse_image(const char *id, const char *config, const char *property) ;
+int liblatte_endorse_source(const char *url, const char *rev, const char *config,
+    const char *property) ;
+
+int liblatte_revoke(const char *, const char *, int , const char *);
+
+int liblatte_endorse_membership(const char *ip, uint32_t port, uint64_t gn, const char *master);
+
+int liblatte_endorse_attester(const char *id, const char *config);
+
+int liblatte_endorse_builder(const char *id, const char *config);
+int liblatte_endorse_image_source(const char * id, const char * config, const char *url, const char *rev);
+
+
+int liblatte_check_property(const char *ip, uint32_t port, const char *property);
+
+int liblatte_check_access(const char *ip, uint32_t port, const char *object);
+int liblatte_check_worker_access(const char *ip, uint32_t port, const char *object);
+
+char* liblatte_check_attestation(const char *ip, uint32_t port, char **attestation,
+    size_t *size);
+
 
 
 #ifdef __cplusplus
