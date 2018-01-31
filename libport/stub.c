@@ -274,10 +274,16 @@ char* __liblatte_check_attestation(const char *ip, uint32_t port, char **attesta
   return NULL;
 }
 
-
-int main() {
+int liblatte_authip(char *ip, int maxsz) 
+  __attribute__((weak, alias("__liblatte_authip")));
+int __liblatte_authip(char *ip, int maxsz)  {
   return 0;
 }
 
 
 
+int liblatte_speaker(char *ip, int maxsz) 
+  __attribute__((weak, alias("__liblatte_speaker")));
+int __liblatte_speaker(char *ip, int maxsz)  {
+  return 0;
+}
