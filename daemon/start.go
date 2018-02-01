@@ -286,11 +286,21 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		//chash := C.CString(configStr + hex.EncodeToString(hash.Sum(nil)))
 		chash := C.CString("default")
 		/// We can directly obtain it since it's still locked!
-		pid := C.uint64_t(container.Pid)
+		pid := C.uint64_t(container.GetPID())
 		logrus.Info("TapconDebug: before create principal")
-		pmin, _ := C.create_principal(pid, cimage, chash, 50)
-		if pmin < 0 {
-			logrus.Info("fail to create principal")
+
+		if n, ok := container.NetworkSettings.Networks["bridge"]; ok {
+			containerIp := n.IPAddress
+			logrus.Info("creating container on IP: ", containerIp)
+			cip := C.CString(containerIp)
+			pmin, _ := C.liblatte_create_principal_with_allocated_ports(
+				pid, cimage, chash, cip, 1, 65535)
+			if pmin <= 0 {
+				logrus.Info("fail to create principal")
+			}
+			C.free(unsafe.Pointer(cip))
+		} else {
+			logrus.Info("fail to obtain network address of container")
 		}
 		C.free(unsafe.Pointer(cimage))
 		C.free(unsafe.Pointer(chash))

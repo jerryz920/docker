@@ -136,14 +136,14 @@ func (daemon *Daemon) InitTapcon() {
 	logrus.Infof("Initializing Tapcon: %v, %v\n", daemon.configStore.UseTapcon,
 		daemon.configStore.TapconMetadataService)
 	if daemon.TapconModeOn() {
-		serverUrl := C.CString(daemon.configStore.TapconMetadataService)
-		persistPath := C.CString("/tmp/tapcon-config.json")
-		ret, _ := C.libport_init(serverUrl, persistPath, 0)
+		auth_id := C.CString("")     // let liblatte to determine
+		daemon_path := C.CString("") // use default
+		ret, _ := C.liblatte_init(auth_id, 0, daemon_path)
 		if ret != 0 {
 			logrus.Errorf("error initialize libport: %d", ret)
 		}
-		C.free(unsafe.Pointer(serverUrl))
-		C.free(unsafe.Pointer(persistPath))
+		C.free(unsafe.Pointer(auth_id))
+		C.free(unsafe.Pointer(daemon_path))
 	}
 }
 
