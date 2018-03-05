@@ -1,7 +1,7 @@
 
-i=${1:-v1}
+v1=${1:-v1}
 
-v1=`docker-machine ip $i`
+#v1=`docker-machine ip $i`
 ssh -tt -i /local/data-population/key1 docker@$v1 'sudo /etc/init.d/docker stop'
 #make dynbinary
 

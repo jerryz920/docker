@@ -382,17 +382,17 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		// There is no problem to call stop trace twice, the command will
 		// be reset.
 		cimageID := C.CString(imageID.String())
-		curl := C.CString(b.sourceCtx.GitURL())
-		crev := C.CString(string(b.sourceCtx.IdentityHash()) + hex.EncodeToString(b.sourceCtx.CwdHash()))
-		ccwd := C.CString("default")
-		ret, _ := C.create_image(cimageID, curl, crev, ccwd)
+		url := b.sourceCtx.GitURL() + "#" + string(b.sourceCtx.IdentityHash()) + ":" +
+			hex.EncodeToString(b.sourceCtx.CwdHash())
+		curl := C.CString(url)
+		cconfig := C.CString("*")
+		ret, _ := C.liblatte_endorse_image(cimageID, cconfig, curl)
 		if ret != 0 {
 			logrus.Errorf("error creating image %s in metadata service", imageID.String())
 		}
 		C.free(unsafe.Pointer(cimageID))
 		C.free(unsafe.Pointer(curl))
-		C.free(unsafe.Pointer(crev))
-		C.free(unsafe.Pointer(ccwd))
+		C.free(unsafe.Pointer(cconfig))
 	}
 
 	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)
