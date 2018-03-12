@@ -254,18 +254,29 @@ RUN mkdir -p /opt/net && cd /opt/net && \
 	cmake .. -DCMAKE_BUILD_TYPE=Release && \
 	make -j && make install
 
-#RUN mkdir -p /opt/libport && cd /opt/libport/ && \
-#	git clone https://github.com/jerryz920/libport.git libport && \
-#	cd libport/libport-core/src/main/native/ && \
-#	bash build.sh && cd build.Release && \
-#	make install
-COPY libport /opt/libport
-RUN  cd /opt/libport && \
-	gcc -fPIC stub.c -c && \
-	ar q libport.a stub.o && \
-	gcc -fPIC -shared stub.o -o libport.so && \
-	cp libport.so libport.a /usr/lib/ && \
-	cp libport.h /usr/include
+# assume go has been installed
+
+COPY protobuf.sh /opt/
+RUN mkdir -p /opt/protobuf && apt-get install unzip && bash /opt/protobuf.sh
+
+RUN mkdir -p /opt/utils && cd /opt/utils && \
+	git clone https://github.com/jerryz920/utils.git . && \
+	cd library && apt-get install -y sudo && bash install_lib.sh
+
+COPY rebuild_port /opt/rebuild_port
+
+RUN export LD_LIBRARY_PATH=/usr/local/lib/ && mkdir -p /opt/libport && cd /opt/libport/ && \
+	git clone https://github.com/jerryz920/libport.git libport && \
+	cd libport/libport-core/src/main/native/ && \
+	bash build.sh && cd build.Release && \
+	make install && ln -s /usr/lib/liblatte.so /usr/lib/libport.so
+#COPY libport /opt/libport
+# RUN  cd /opt/libport && \
+# 	gcc -fPIC stub.c -c && \
+# 	ar q libport.a stub.o && \
+# 	gcc -fPIC -shared stub.o -o libport.so && \
+# 	cp libport.so libport.a /usr/lib/ && \
+# 	cp libport.h /usr/include
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

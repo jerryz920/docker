@@ -48,7 +48,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// #cgo LDFLAGS: -lport
+// #cgo LDFLAGS: -llatte
 // #include "libport.h"
 // #include <stdlib.h>
 import "C"

@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/container"
 )
 
-// #cgo LDFLAGS: -lport
+// #cgo LDFLAGS: -llatte
 // #include "libport.h"
 import "C"
 

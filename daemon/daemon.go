@@ -62,7 +62,7 @@ import "unsafe"
 
 // #include "libport.h"
 // #include <stdlib.h>
-// #cgo LDFLAGS: -lport
+// #cgo LDFLAGS: -llatte
 import "C"
 
 var (

@@ -28,7 +28,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// #cgo LDFLAGS: -lport
+// #cgo LDFLAGS: -llatte
 // #include <stdlib.h>
 // #include "libport.h"
 import "C"

@@ -96,6 +96,9 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		return nil, err
 	}
 
+	if daemon.TapconModeOn() && params.Config.UseTapcon {
+		params.HostConfig.Binds = append(params.HostConfig.Binds, "/var/run/attguard.sock:/var/run/attguard.sock")
+	}
 	if container, err = daemon.newContainer(params.Name, params.Config, params.HostConfig, imgID, managed); err != nil {
 		return nil, err
 	}

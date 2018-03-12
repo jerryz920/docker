@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"os/exec"
@@ -92,26 +91,27 @@ func (daemon *Daemon) tapconSetupFirewall(container *container.Container) error 
 		exec.Command("iptables", "-t", "nat", "-X", chainName).Run()
 		return err
 	}
-	var containerIp string
-	if n, ok := container.NetworkSettings.Networks["bridge"]; ok {
-		containerIp = n.IPAddress
-	} else {
-		log.Debug("container network setting: %v", container.NetworkSettings.Networks)
-		exec.Command("iptables", "-t", "nat", "-X", chainName).Run()
-		return errors.New("only support bridge network")
-	}
-	// TODO: should add a drop rule to range besides [port_min, port_max]
-	// only support Tcp for now
-	cmd = exec.Command("iptables", "-t", "nat", "-A", chainName,
-		"-p", "tcp", "-s", containerIp,
-		"-j", "SNAT", "--to-source",
-		fmt.Sprintf("%s", containerBridgeIp))
-	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Errorf("error inserting static mapping rule: %s", string(out))
-		// clear the chain
-		exec.Command("iptables", "-t", "nat", "-F", chainName).Run()
-		return err
-	}
+	/// We do not need this SNAT setup now as we have a full new IP address
+	//var containerIp string
+	//if n, ok := container.NetworkSettings.Networks["bridge"]; ok {
+	//	containerIp = n.IPAddress
+	//} else {
+	//	log.Debug("container network setting: %v", container.NetworkSettings.Networks)
+	//	exec.Command("iptables", "-t", "nat", "-X", chainName).Run()
+	//	return errors.New("only support bridge network")
+	//}
+	//// TODO: should add a drop rule to range besides [port_min, port_max]
+	//// only support Tcp for now
+	//cmd = exec.Command("iptables", "-t", "nat", "-A", chainName,
+	//	"-p", "tcp", "-s", containerIp,
+	//	"-j", "SNAT", "--to-source",
+	//	fmt.Sprintf("%s", containerBridgeIp))
+	//if out, err := cmd.CombinedOutput(); err != nil {
+	//	log.Errorf("error inserting static mapping rule: %s", string(out))
+	//	// clear the chain
+	//	exec.Command("iptables", "-t", "nat", "-F", chainName).Run()
+	//	return err
+	//}
 
 	return nil
 }

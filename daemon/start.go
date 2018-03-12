@@ -25,7 +25,7 @@ import (
 
 // #include <stdlib.h>
 // #include "libport.h"
-// #cgo LDFLAGS: -lport
+// #cgo LDFLAGS: -llatte
 import "C"
 
 // ContainerStart starts a container.
@@ -204,7 +204,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	}
 	if daemon.TapconModeOn() && container.Config.UseTapcon {
 		// compute sha256 of the configuration file
-		logrus.Info("TapconDebug: enter tapcon mode, container = %p", container)
+		logrus.Infof("TapconDebug: enter tapcon mode, container = %p", container)
 		hash := sha256.New()
 		/////sort
 		filterMap := make(map[string]bool)
@@ -214,7 +214,9 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 				filterMap[k] = true
 			}
 		}
+		logrus.Debugf("TapconDebug: after filter opts %s", container.Config.FilterOpts)
 		for _, env := range container.Config.Env {
+			logrus.Debugf("TapconDebug: env %s", env)
 			name := strings.SplitN(env, "=", 2)[0]
 			if _, ok := filterMap[name]; !ok {
 				hash.Write([]byte(env))
@@ -279,6 +281,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		//hash.Write([]byte(container.HostConfig.VolumeDriver))
 
 		cimage := C.CString(container.ImageID.String())
+		logrus.Debugf("TapconDebug: image %s", container.ImageID.String())
 		//var configStr string
 		//if container.Config.FilterOpts != "" {
 		//  configStr = container.Config.FilterOpts + ";"
@@ -286,8 +289,8 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		//chash := C.CString(configStr + hex.EncodeToString(hash.Sum(nil)))
 		chash := C.CString("default")
 		/// We can directly obtain it since it's still locked!
-		pid := C.uint64_t(container.GetPID())
-		logrus.Info("TapconDebug: before create principal")
+		pid := C.uint64_t(container.State.Pid)
+		logrus.Infof("TapconDebug: before create principal, pid=%d", container.State.Pid)
 
 		if n, ok := container.NetworkSettings.Networks["bridge"]; ok {
 			containerIp := n.IPAddress

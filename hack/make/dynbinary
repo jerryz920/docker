@@ -1,8 +1,20 @@
 #!/bin/bash
 set -e
 
+copy_guarddep() {
+  export LD_LIBRARY_PATH=/usr/local/lib
+  echo "copy dep for attguard"
+  ldd `which attguard` | grep -v linux-vdso | grep -v ld-linux | awk -F\> '{print $2}' | sed 's/(.\+)//' | while \
+    read line; do
+     if test -f $line; then
+       cp $line $DEST
+     fi
+  done
+}
+
 copy_dep() {
   name=$1
+  export LD_LIBRARY_PATH=/usr/local/lib
   echo "copy dep for $name"
   ldd $name | grep -v linux-vdso | grep -v ld-linux | awk -F\> '{print $2}' | sed 's/(.\+)//' | while \
     read line; do
@@ -10,6 +22,12 @@ copy_dep() {
        cp $line $DEST
      fi
   done
+
+#  rm $DEST/libdl.so.2
+#  rm $DEST/libm.so.6
+#  rm $DEST/libc.so.6
+#  rm $DEST/libresolv.so.2
+#  rm $DEST/libpthread.so.0
 }
 # This script exists as backwards compatibility for CI
 (
@@ -31,7 +49,10 @@ copy_dep() {
     BINARY_NAME="$BINARY_SHORT_NAME-$VERSION"
     BINARY_EXTENSION="$(binary_extension)"
     BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
+    copy_guarddep
     copy_dep $DEST/$BINARY_FULLNAME
     cp /usr/local/bin/docker-* $DEST/
+    cp `which attguard` $DEST/
+    cp `which attguard-daemon` $DEST/
 )
 
