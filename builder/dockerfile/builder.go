@@ -398,7 +398,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		//C.free(unsafe.Pointer(curl))
 		//C.free(unsafe.Pointer(cconfig))
 		source := b.sourceCtx.GitURL() + "#" + string(b.sourceCtx.IdentityHash())
-		b.docker.tapconEndorseImage(imageID.String(), source)
+		b.docker.TapconEndorseImage(imageID.String(), source)
 	}
 
 	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)

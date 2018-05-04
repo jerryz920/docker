@@ -159,6 +159,9 @@ type Backend interface {
 	// a certain party.
 	TapconModeOn() bool
 
+	// Tapcon builds the image and publish it locally
+	TapconEndorseImage(image string, source string) error
+
 	// SquashImage squashes the fs layers from the provided image down to the specified `to` image
 	SquashImage(from string, to string) (string, error)
 }

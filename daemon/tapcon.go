@@ -164,12 +164,13 @@ func (daemon *Daemon) tapconStartContainer(container *container.Container) error
 	}
 
 	index := 0
-	for _, part := range container.Config.EntryPoint {
+	for _, part := range container.Config.Entrypoint {
 		conf := fmt.Sprintf("arg%d=%s", index, part)
 		configs = append(configs, conf)
 		index++
 	}
-	for _, part := range container.Config.EntryPoint {
+
+	for _, part := range container.Config.Cmd {
 		conf := fmt.Sprintf("arg%d=%s", index, part)
 		configs = append(configs, conf)
 		index++
@@ -185,7 +186,7 @@ func (daemon *Daemon) tapconStartContainer(container *container.Container) error
 
 	if n, ok := container.NetworkSettings.Networks["bridge"]; ok {
 		containerIp := n.IPAddress
-		logrus.Info("creating container on IP: ", containerIp)
+		log.Info("creating container on IP: ", containerIp)
 		cip := C.CString(containerIp)
 		pmin, _ := C.liblatte_create_instance(
 			cpid, cimage, cip, cnport, cstore, cbufptr, cn)
@@ -195,14 +196,13 @@ func (daemon *Daemon) tapconStartContainer(container *container.Container) error
 		C.free(unsafe.Pointer(cip))
 
 	} else {
-		logrus.Info("fail to obtain network address of container")
+		log.Info("fail to obtain network address of container")
 	}
 	for i := 0; i < len(configs); i++ {
 		C.free(unsafe.Pointer(cconfigs[i]))
 	}
 	C.free(unsafe.Pointer(cstore))
 	C.free(unsafe.Pointer(cimage))
-	C.free(unsafe.Pointer(cpid))
 	return nil
 }
 
@@ -215,8 +215,8 @@ func (daemon *Daemon) tapconStopContainer(container *container.Container) error 
 	return nil
 }
 
-func (daemon *Daemon) tapconEndorseImage(image string, source string) error {
-	cimageID := C.CString(image.String())
+func (daemon *Daemon) TapconEndorseImage(image string, source string) error {
+	cimageID := C.CString(image)
 	/// git # master : dir
 	csource := C.CString(source)
 	//url := b.sourceCtx.GitURL() + "#" + string(b.sourceCtx.IdentityHash()) + ":" +
@@ -224,14 +224,16 @@ func (daemon *Daemon) tapconEndorseImage(image string, source string) error {
 	cprop := C.CString("source")
 	ret, _ := C.liblatte_endorse_image(cimageID, cprop, csource)
 	if ret != 0 {
-		logrus.Errorf("error creating image %s in metadata service", imageID.String())
+		log.Errorf("error creating image %s in metadata service", image)
 	}
-	ret, _ = C.liblatte_link_image("", cimageID)
+	chost := C.CString("")
+	ret, _ = C.liblatte_link_image(chost, cimageID)
 	if ret != 0 {
-		logrus.Errorf("error linking image %s to self", imageID.String())
+		log.Errorf("error linking image %s to self", image)
 	}
 	C.free(unsafe.Pointer(cimageID))
 	C.free(unsafe.Pointer(csource))
 	C.free(unsafe.Pointer(cprop))
+	C.free(unsafe.Pointer(chost))
 	return nil
 }
