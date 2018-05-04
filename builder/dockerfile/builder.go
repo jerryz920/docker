@@ -2,7 +2,6 @@ package dockerfile
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +10,6 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
-	"unsafe"
 
 	"github.com/Sirupsen/logrus"
 	apierrors "github.com/docker/docker/api/errors"
@@ -381,18 +379,26 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	if b.docker.TapconModeOn() && b.sourceCtx != nil {
 		// There is no problem to call stop trace twice, the command will
 		// be reset.
-		cimageID := C.CString(imageID.String())
-		url := b.sourceCtx.GitURL() + "#" + string(b.sourceCtx.IdentityHash()) + ":" +
-			hex.EncodeToString(b.sourceCtx.CwdHash())
-		curl := C.CString(url)
-		cconfig := C.CString("*")
-		ret, _ := C.liblatte_endorse_image(cimageID, cconfig, curl)
-		if ret != 0 {
-			logrus.Errorf("error creating image %s in metadata service", imageID.String())
-		}
-		C.free(unsafe.Pointer(cimageID))
-		C.free(unsafe.Pointer(curl))
-		C.free(unsafe.Pointer(cconfig))
+		//cimageID := C.CString(imageID.String())
+		//url := b.sourceCtx.GitURL() + "#" + string(b.sourceCtx.IdentityHash()) + ":" +
+		//	hex.EncodeToString(b.sourceCtx.CwdHash())
+		//curl := C.CString(url)
+		//cconfig := C.CString("*")
+		//ret, _ := C.liblatte_endorse_image(cimageID, cconfig, curl)
+		//if ret != 0 {
+		//	logrus.Errorf("error creating image %s", imageID.String())
+		//}
+
+		//ret, _ = C.liblatte_link_image("", cimageID)
+		//if ret != 0 {
+		//	logrus.Errorf("error linking image %s to self", imageID.String())
+		//}
+
+		//C.free(unsafe.Pointer(cimageID))
+		//C.free(unsafe.Pointer(curl))
+		//C.free(unsafe.Pointer(cconfig))
+		source := b.sourceCtx.GitURL() + "#" + string(b.sourceCtx.IdentityHash())
+		b.docker.tapconEndorseImage(imageID.String(), source)
 	}
 
 	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)

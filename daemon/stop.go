@@ -49,11 +49,7 @@ func (daemon *Daemon) containerStop(container *container.Container, seconds int)
 		return nil
 	}
 	if daemon.TapconModeOn() && container.Config.UseTapcon {
-		if err := daemon.tapconRemoveFirewall(container); err != nil {
-			logrus.Errorf("Error tearing down tapcon firewall for container: %s", err)
-		}
-		pid := C.uint64_t(container.GetPID())
-		C.liblatte_delete_principal_without_allocated_ports(pid)
+		daemon.tapconStopContainer(container)
 	}
 
 	daemon.stopHealthchecks(container)

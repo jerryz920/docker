@@ -5,11 +5,21 @@ import (
 	"net"
 	"os/exec"
 	"sync"
+	"unsafe"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	docker_image "github.com/docker/docker/image"
 )
+
+/*
+
+#include <stdlib.h>
+#include "libport.h"
+#cgo LDFLAGS: -llatte
+
+*/
+import "C"
 
 const MaxLen = 12
 
@@ -138,5 +148,90 @@ func (daemon *Daemon) tapconRemoveFirewall(container *container.Container) error
 		log.Errorf("error deleting static mapping chain: %s", string(out))
 		return err
 	}
+	return nil
+}
+
+func (daemon *Daemon) tapconStartContainer(container *container.Container) error {
+
+	cimage := C.CString(fmt.Sprintf("%s#%s", container.ImageID.String(), "master"))
+	cpid := C.uint64_t(container.State.Pid)
+	cnport := C.int(0)
+	cstore := C.CString("") /// use itself
+	configs := make([]string, 0)
+
+	for _, env := range container.Config.Env {
+		configs = append(configs, env)
+	}
+
+	index := 0
+	for _, part := range container.Config.EntryPoint {
+		conf := fmt.Sprintf("arg%d=%s", index, part)
+		configs = append(configs, conf)
+		index++
+	}
+	for _, part := range container.Config.EntryPoint {
+		conf := fmt.Sprintf("arg%d=%s", index, part)
+		configs = append(configs, conf)
+		index++
+	}
+	/// A lot of copy, sigh.
+	cconfigs := make([]*C.char, len(configs))
+
+	for i := 0; i < len(configs); i++ {
+		cconfigs[i] = C.CString(configs[i])
+	}
+	cn := C.int(len(configs))
+	cbufptr := (**C.char)(unsafe.Pointer(&cconfigs[0]))
+
+	if n, ok := container.NetworkSettings.Networks["bridge"]; ok {
+		containerIp := n.IPAddress
+		logrus.Info("creating container on IP: ", containerIp)
+		cip := C.CString(containerIp)
+		pmin, _ := C.liblatte_create_instance(
+			cpid, cimage, cip, cnport, cstore, cbufptr, cn)
+		if pmin <= 0 {
+			log.Info("fail to create principal")
+		}
+		C.free(unsafe.Pointer(cip))
+
+	} else {
+		logrus.Info("fail to obtain network address of container")
+	}
+	for i := 0; i < len(configs); i++ {
+		C.free(unsafe.Pointer(cconfigs[i]))
+	}
+	C.free(unsafe.Pointer(cstore))
+	C.free(unsafe.Pointer(cimage))
+	C.free(unsafe.Pointer(cpid))
+	return nil
+}
+
+func (daemon *Daemon) tapconStopContainer(container *container.Container) error {
+	cpid := C.uint64_t(container.GetPID())
+	ret, _ := C.liblatte_delete_instance(cpid)
+	if ret < 0 {
+		log.Error("fail to delete the instance")
+	}
+	return nil
+}
+
+func (daemon *Daemon) tapconEndorseImage(image string, source string) error {
+	cimageID := C.CString(image.String())
+	/// git # master : dir
+	csource := C.CString(source)
+	//url := b.sourceCtx.GitURL() + "#" + string(b.sourceCtx.IdentityHash()) + ":" +
+	//	hex.EncodeToString(b.sourceCtx.CwdHash())
+	cprop := C.CString("source")
+	ret, _ := C.liblatte_endorse_image(cimageID, cprop, csource)
+	if ret != 0 {
+		logrus.Errorf("error creating image %s in metadata service", imageID.String())
+	}
+	ret, _ = C.liblatte_link_image("", cimageID)
+	if ret != 0 {
+		logrus.Errorf("error linking image %s to self", imageID.String())
+	}
+	C.free(unsafe.Pointer(cimageID))
+	C.free(unsafe.Pointer(csource))
+	C.free(unsafe.Pointer(cprop))
 	return nil
 }

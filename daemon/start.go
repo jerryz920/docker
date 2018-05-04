@@ -18,10 +18,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/runconfig"
 )
-import (
-	"crypto/sha256"
-	"unsafe"
-)
 
 // #include <stdlib.h>
 // #include "libport.h"
@@ -204,26 +200,26 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	}
 	if daemon.TapconModeOn() && container.Config.UseTapcon {
 		// compute sha256 of the configuration file
-		logrus.Infof("TapconDebug: enter tapcon mode, container = %p", container)
-		hash := sha256.New()
-		/////sort
-		filterMap := make(map[string]bool)
-		if container.Config.FilterOpts != "" {
-			toFilters := strings.Split(container.Config.FilterOpts, ";")
-			for _, k := range toFilters {
-				filterMap[k] = true
-			}
-		}
-		logrus.Debugf("TapconDebug: after filter opts %s", container.Config.FilterOpts)
-		for _, env := range container.Config.Env {
-			logrus.Debugf("TapconDebug: env %s", env)
-			name := strings.SplitN(env, "=", 2)[0]
-			if _, ok := filterMap[name]; !ok {
-				hash.Write([]byte(env))
-			} else {
-				logrus.Debug("filtered env: ", name)
-			}
-		}
+		//logrus.Infof("TapconDebug: enter tapcon mode, container = %p", container)
+		//hash := sha256.New()
+		///////sort
+		//filterMap := make(map[string]bool)
+		//if container.Config.FilterOpts != "" {
+		//	toFilters := strings.Split(container.Config.FilterOpts, ";")
+		//	for _, k := range toFilters {
+		//		filterMap[k] = true
+		//	}
+		//}
+		//logrus.Debugf("TapconDebug: after filter opts %s", container.Config.FilterOpts)
+		//for _, env := range container.Config.Env {
+		//	logrus.Debugf("TapconDebug: env %s", env)
+		//	name := strings.SplitN(env, "=", 2)[0]
+		//	if _, ok := filterMap[name]; !ok {
+		//		hash.Write([]byte(env))
+		//	} else {
+		//		logrus.Debug("filtered env: ", name)
+		//	}
+		//}
 
 		//hash.Write([]byte(strings.Join(container.Config.Entrypoint, " ")))
 		//hash.Write([]byte(strings.Join(container.Config.Cmd, " ")))
@@ -279,37 +275,8 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		//hash.Write([]byte(container.HostConfig.UTSMode))
 		//hash.Write([]byte(container.HostConfig.UsernsMode))
 		//hash.Write([]byte(container.HostConfig.VolumeDriver))
-
-		cimage := C.CString(container.ImageID.String())
-		logrus.Debugf("TapconDebug: image %s", container.ImageID.String())
-		//var configStr string
-		//if container.Config.FilterOpts != "" {
-		//  configStr = container.Config.FilterOpts + ";"
-		//}
-		//chash := C.CString(configStr + hex.EncodeToString(hash.Sum(nil)))
-		chash := C.CString("default")
-		/// We can directly obtain it since it's still locked!
-		pid := C.uint64_t(container.State.Pid)
-		logrus.Infof("TapconDebug: before create principal, pid=%d", container.State.Pid)
-
-		if n, ok := container.NetworkSettings.Networks["bridge"]; ok {
-			containerIp := n.IPAddress
-			logrus.Info("creating container on IP: ", containerIp)
-			cip := C.CString(containerIp)
-			pmin, _ := C.liblatte_create_principal_with_allocated_ports(
-				pid, cimage, chash, cip, 1, 65535)
-			if pmin <= 0 {
-				logrus.Info("fail to create principal")
-			}
-			C.free(unsafe.Pointer(cip))
-		} else {
-			logrus.Info("fail to obtain network address of container")
-		}
-		C.free(unsafe.Pointer(cimage))
-		C.free(unsafe.Pointer(chash))
-		if err := daemon.tapconSetupFirewall(container); err != nil {
-			logrus.Errorf("Error setting up tapcon firewall for container: %s", err)
-		}
+		logrus.Info("Tapcon: Starting Instance")
+		daemon.tapconStartContainer(container)
 		logrus.Info("TapconDebug: finish start")
 
 	}
