@@ -56,7 +56,7 @@ func GitGetIdentity(root string) ([]byte, []byte, error) {
 		/// sha1.Sum returns [20]byte, use [:] trick to convert it to a slice.
 		cwd_hash := sha1.Sum(bytes.Trim(identities[0], "\n"))
 		/// identities[1] would be the work tree hash
-		return cwd_hash[:], identities[1], nil
+		return cwd_hash[:], bytes.Trim(identities[1], "\n"), nil
 	}
 }
 

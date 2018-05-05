@@ -222,7 +222,7 @@ func (daemon *Daemon) TapconEndorseImage(image string, source string) error {
 	//url := b.sourceCtx.GitURL() + "#" + string(b.sourceCtx.IdentityHash()) + ":" +
 	//	hex.EncodeToString(b.sourceCtx.CwdHash())
 	cprop := C.CString("source")
-	ret, _ := C.liblatte_endorse_image(cimageID, cprop, csource)
+	ret, _ := C.liblatte_endorse(cimageID, cprop, csource)
 	if ret != 0 {
 		log.Errorf("error creating image %s in metadata service", image)
 	}
