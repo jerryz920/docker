@@ -80,8 +80,13 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		if err := c.ToDisk(); err != nil {
 			return err
 		}
+
+		if daemon.TapconModeOn() && c.Config.UseTapcon {
+			daemon.tapconStopContainer(c)
+		}
 		return daemon.postRunProcessing(c, e)
 	case libcontainerd.StateExitProcess:
+		logrus.Infof("end of process %d", e.ProcessID)
 		if execConfig := c.ExecCommands.Get(e.ProcessID); execConfig != nil {
 			ec := int(e.ExitCode)
 			execConfig.Lock()

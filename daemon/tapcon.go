@@ -194,9 +194,11 @@ func (daemon *Daemon) tapconStartContainer(container *container.Container) error
 			log.Info("fail to create principal")
 		}
 		C.free(unsafe.Pointer(cip))
+		container.TapconInstanceID = (uint64)(container.State.Pid)
 
 	} else {
 		log.Info("fail to obtain network address of container")
+		container.TapconInstanceID = 0
 	}
 	for i := 0; i < len(configs); i++ {
 		C.free(unsafe.Pointer(cconfigs[i]))
@@ -207,7 +209,7 @@ func (daemon *Daemon) tapconStartContainer(container *container.Container) error
 }
 
 func (daemon *Daemon) tapconStopContainer(container *container.Container) error {
-	cpid := C.uint64_t(container.GetPID())
+	cpid := C.uint64_t(container.TapconInstanceID)
 	ret, _ := C.liblatte_delete_instance(cpid)
 	if ret < 0 {
 		log.Error("fail to delete the instance")

@@ -291,10 +291,6 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 func (daemon *Daemon) Cleanup(container *container.Container) {
 	daemon.releaseNetwork(container)
 
-	if daemon.TapconModeOn() && container.Config.UseTapcon {
-		daemon.tapconRemoveFirewall(container)
-	}
-
 	container.UnmountIpcMounts(detachMounted)
 
 	if err := daemon.conditionalUnmountOnCleanup(container); err != nil {

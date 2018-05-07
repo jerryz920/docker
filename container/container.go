@@ -101,6 +101,8 @@ type CommonContainer struct {
 	LogCopier      *logger.Copier `json:"-"`
 	restartManager restartmanager.RestartManager
 	attachContext  *attachContext
+	// Tapcon Specific, used if the process has been deleted
+	TapconInstanceID uint64
 }
 
 // NewBaseContainer creates a new container with its
